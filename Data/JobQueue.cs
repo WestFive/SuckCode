@@ -15,13 +15,15 @@ namespace Data
 
         public string laneName { get; set; }
 
+        public string laneType { get; set; }
+
         public string direction { get; set; }
 
         public string startTime { get; set; }
 
         public string endTime { get; set; }
 
-        public string lincensePlateNumber { get; set; }
+        public string licensePlateNumber { get; set; }
 
         public string ocrLicensePlateNumber { get; set; }
 
@@ -45,6 +47,8 @@ namespace Data
 
         public string lockedTime { get; set; }
 
+        public string releaseResult { get; set; }
+
         public string releasedType { get; set; }
 
         public string releasedBy { get; set; }
@@ -52,8 +56,17 @@ namespace Data
         public string releasedTime { get; set; }
 
         public List<Container> containers { get; set; }
+        public Picture pictures { get; set; }
+        public List<Process> processes { get; set; }
+
+        public List<ReleaseRuleResult> releaseRuleResults { get; set; }
+
+        public Extras extras { get; set; }
 
     }
+
+    public class Extras { }
+
 
     public class Container
     {
@@ -68,25 +81,27 @@ namespace Data
         public string reliability { get; set; }
 
         public List<Damage> damages { get; set; }
-        public Picture pictures { get; set; }
-        public List<Process> processes { get; set; }
 
-        public List<ReleaseRuleResult> ReleaseRuleResults { get; set; }
-        public string extras { get; set; }
+ 
     }
 
     public class ReleaseRuleResult
     {
+        public string id { get; set; }
+
+        public string sequence { get; set; }
+
         public string releaseRuleName { get; set; }
 
-        public string status { get; set; }
+        public string releaseRuleStatus { get; set; }
 
-        public string action { get; set; }
-
-        public string message { get; set; }
+        public string releaseResultMessage { get; set; }
 
         public string updateTime { get; set; }
 
+        public string jobQueueId { get; set; }
+
+        public string jobQueueCode { get; set; }
     }
 
     public class Process

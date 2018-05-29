@@ -1,5 +1,6 @@
-﻿using MessageHub.Model.Connection;
-using MessageHub.Model.Message;
+﻿using MessageHub.Model.Message;
+using MessageHub.util;
+using MessageHub.Model;
 using Newtonsoft.Json;
 using Quobject.SocketIoClientDotNet.Client;
 using System;
@@ -12,8 +13,6 @@ namespace MessageHub
     public class MessageHubClient
     {
         public string HubAddress { get; set; }
-        public string HubName { get; set; }
-        public Dictionary<string, string> HubConnectctParames { get; set; }
         #region HubReciveMessageCallBack
         public delegate void ReciveMessage(string str);
         /// <summary>
@@ -37,8 +36,10 @@ namespace MessageHub
         public event HubError reciveHubError;
         #endregion
 
+        public string laneCode;
 
-        public Quobject.SocketIoClientDotNet.Client.Socket socket;
+        public string apiAddress { get; set; }
+
 
 
 
@@ -48,98 +49,122 @@ namespace MessageHub
         /// <param name="HubAddress">地址</param>
         /// <param name="HubMethod">名称</param>
         /// <param name="HubParams">参数例如：传入一个Dictionary dic = {{"Name","xiamenxxxxx"},{"Type","client"}}</param>
-        public MessageHubClient(string HubAddress, Dictionary<string, string> HubParams = null)
+        public MessageHubClient(string HubAddress, string apiAddress, string laneCode)
         {
-            socket = IO.Socket(HubAddress);
-
-            socket.On(Quobject.SocketIoClientDotNet.Client.Socket.EVENT_CONNECT, () =>
-            {
 
 
-                socket.Emit("authentication", (data) =>
-                {
-                    reciveStatus?.Invoke(JsonConvert.SerializeObject(data));
+            this.HubAddress = HubAddress;
+            this.laneCode = laneCode;
 
-                }, JsonConvert.SerializeObject(new AuthenticationObject(HubParams.Last().Value, HubParams.First().Value)));
+            RedisManager.url = HubAddress;
 
-
-
-            });
-
-            socket.On(HubParams.First().Value, (data) =>
-            {
-                reciveMessage?.Invoke(JsonConvert.SerializeObject(data));
-            });
-
-
+            this.apiAddress = apiAddress;
 
         }
-
+        Socket socket;
         public void HubInit()
         {
             try
             {
-                socket.Connect();
-                socket.On(Quobject.SocketIoClientDotNet.Client.Socket.EVENT_ERROR, (data) =>
-                {
+                socket = IO.Socket(HubAddress);
 
-                    reciveHubError?.Invoke(data.ToString());
+                socket.On(Socket.EVENT_CONNECT, (data) =>
+                {
+                    socket.Emit("authentication", (data1) =>
+                    {
+
+
+                        reciveStatus?.Invoke(convertData(data1));
+                    }, JsonConvert.SerializeObject(new ConnectionCreate(laneCode, laneCode)));
+
                 });
+
+                socket.On(laneCode, (data) =>
+                {
+                    
+                    reciveMessage?.Invoke(convertData(data));
+                });
+
+                //var redis = RedisManager.Instance.GetSubscriber();
+                //redis.SubscribeAsync(laneCode, (chanel, message) =>
+                //{
+                //    reciveMessage?.Invoke(message);
+                //});
+
+                //var db = RedisManager.Instance.GetDatabase();
+                //db.PublishAsync(laneCode, "监听注册登陆成功");
             }
             catch (Exception ex)
             {
-                reciveHubError?.Invoke(ex.ToString());
+                reciveStatus?.Invoke("消息客户端出现错误" + ex.ToString());
             }
         }
 
 
-        public void sendP2p2(MessageP2p p2p)
-        {
-            socket.Emit("p2p", JsonConvert.SerializeObject(p2p));
-        }
-
-
-
-        public bool flag = false;
-
-        private void ReConnecting()
-        {
-
-
-
-
-
-        }
-        private void ReConnected()
-        {
-
-        }
         /// <summary>
         /// SimulatorLaneSendMes
         /// </summary>
         public void AddMessage(MessageCUR messagecreate)
         {
 
-            socket.Emit("createMessage", (data) =>
-            {
-                reciveStatus?.Invoke(JsonConvert.SerializeObject(data));
-            }
-            , JsonConvert.SerializeObject(messagecreate));
 
+            try
+            {
+                socket.Emit("createMessage", (data) =>
+                {
+                    reciveStatus?.Invoke(convertData(data));
+                }, JsonConvert.SerializeObject(messagecreate));
+            }
+            catch (Exception ex)//尝试用API的方式发送
+            {
+                string url = apiAddress + "/addMessage";
+                dynamic str = WebApi.Post(url, JsonConvert.SerializeObject(messagecreate));
+                reciveStatus?.Invoke(convertData(str));
+
+            }
 
         }
 
 
 
-     
 
-      
+
+
+        private string convertData(object obj)
+        {
+            if (obj.GetType().FullName == "Newtonsoft.Json.Linq.JObject")
+            {
+                string strobj = JsonConvert.SerializeObject(obj);
+                return strobj;
+            }
+            return (string)obj;
+        }
+
 
         public void deleteMessage(MessageD messageDel)
         {
-            socket.Emit("deleteMessage", JsonConvert.SerializeObject(messageDel));
-            Console.WriteLine(JsonConvert.SerializeObject(messageDel));
+            try
+            {
+                socket.Emit("deleteMessage", (data) =>
+                {
+                    reciveStatus?.Invoke(JsonConvert.SerializeObject(data));
+                }, JsonConvert.SerializeObject(messageDel));
+            }
+            catch (Exception ex)
+            {
+                string url = apiAddress + "/deleteMessage";
+                dynamic str = WebApi.Post(url, JsonConvert.SerializeObject(messageDel));
+                reciveStatus?.Invoke(convertData(str));
+            }
 
+        }
+
+        public void sendP2pMessge(MessageP2p message)
+        {
+            string url = apiAddress + "/p2pMessage";
+            Console.WriteLine(message.receiver);
+            dynamic str = WebApi.Post(url, JsonConvert.SerializeObject(message));
+            reciveStatus?.Invoke(convertData(str));
         }
     }
 }

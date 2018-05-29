@@ -54,5 +54,7 @@ namespace MessageHub.util
             return JsonConvert.SerializeObject(dic);
         }
 
+        
+
     }
 }

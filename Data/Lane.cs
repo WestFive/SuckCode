@@ -12,6 +12,8 @@ namespace Data
         public string laneName { get; set; }
 
         public string laneType { get; set; }
+        
+        public string direction { get; set; }
 
         public bool hasVehicle { get; set; }
 
